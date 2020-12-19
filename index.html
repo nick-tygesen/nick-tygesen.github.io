@@ -10,7 +10,7 @@
 </head>
 <body>
 <!-- Display the countdown timer in an element -->
-<h1>Time until retirement</h1>
+<h1>Time until retirement:</h1>
 <p id="demo"></p>
 
 <script>
@@ -39,7 +39,7 @@ var x = setInterval(function() {
   // If the count down is finished, write some text 
   if (distance < 0) {
     clearInterval(x);
-    document.getElementById("demo").innerHTML = "Congrats";
+    document.getElementById("demo").innerHTML = "Congrats on escaping the bureaucracy!";
   }
 }, 1000);
 </script>
