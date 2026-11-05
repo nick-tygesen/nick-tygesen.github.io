@@ -62,3 +62,18 @@ def test_email_lists_each_film_once():
     assert subject == "Watchlist in NYC: Ikiru"
     assert text.count("Ikiru (1952)") == 1 and "Metrograph" in text and "Film Forum" in text
     assert "letterboxd.com/film/ikiru/" in html
+
+
+def test_double_bill_matches_each_film_with_its_own_year():
+    films = [Film("The Imitation Game", 2014, "the-imitation-game"), Film("Episode One", 1990, "ep1")]
+    bill = Screening("Paris Theater", "The Altruists, Episode One + The Imitation Game (2014)", None,
+                     "https://x/", year=2026, note="Nov 16 only")
+    assert [(m.film.slug, m.year_confirmed) for m in find_matches(films, [bill])] == [("the-imitation-game", True)]
+
+
+def test_prefilter_accepts_slugs_and_possessive_titles():
+    from watchlist_alerts.matching import make_prefilter
+    want = make_prefilter([Film("The Devils", 1971, "the-devils"), Film("Bram Stoker's Dracula", 1992, "bsd"),
+                           Film("True Grit", 2010, "true-grit-2010")])
+    assert want("the-devils") and want("Ken Russell’s The Devils") and want("bram-stokers-dracula")
+    assert want("true-grit-2010") and not want("hamnet")

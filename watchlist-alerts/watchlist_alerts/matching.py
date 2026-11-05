@@ -25,6 +25,7 @@ def normalize(title: str) -> str:
     t = _PREFIXES.sub("", t.strip())
     t = _YEAR_SUFFIX.sub("", t)
     t = t.lower().replace("&", " and ")
+    t = re.sub(r"['’`]", "", t)  # "Stoker's" -> "stokers", matching URL slugs
     t = re.sub(r"[^a-z0-9 ]+", " ", t)
     t = re.sub(r"\s+", " ", t).strip()
     for art in _ARTICLES:
@@ -34,11 +35,28 @@ def normalize(title: str) -> str:
     return t
 
 
-def screening_year(s: Screening) -> int | None:
-    if s.year:
-        return s.year
-    m = _YEAR_SUFFIX.search(s.title)
-    return int(m.group(1)) if m else None
+def title_parts(s: Screening) -> list[tuple[str, int | None]]:
+    """Each film in a listing, with its year. Double bills ("A + B (2014)") are split;
+    a year in parentheses beats the venue's year field, which belongs to the whole bill."""
+    parts = re.split(r"\s+\+\s+", s.title)
+    out = []
+    for p in parts:
+        m = _YEAR_SUFFIX.search(p)
+        out.append((p, int(m.group(1)) if m else (s.year if len(parts) == 1 else None)))
+    return out
+
+
+def make_prefilter(films: list[Film]):
+    """Loose title/slug test venues use to decide which detail pages to fetch.
+    Also accepts "<Director>'s <Title>" style names."""
+    titles = {normalize(f.title) for f in films}
+
+    def want(text: str) -> bool:
+        t = normalize(re.sub(r"[-_]+", " ", text))
+        t = re.sub(r" (19|20)\d\d$", "", t)
+        return t in titles or any(t.endswith(" " + x) for x in titles if len(x) > 3)
+
+    return want
 
 
 @dataclass(frozen=True)
@@ -55,16 +73,13 @@ def find_matches(films: list[Film], screenings: list[Screening]) -> list[Match]:
 
     matches = []
     for s in screenings:
-        candidates = by_title.get(normalize(s.title), [])
-        if not candidates:
-            continue
-        year = screening_year(s)
-        if year is not None:
-            # Venues are sometimes a year off from Letterboxd (festival vs release year).
-            hits = [f for f in candidates if f.year is None or abs(f.year - year) <= 1]
-            matches += [Match(f, s, year_confirmed=f.year is not None) for f in hits]
-        else:
-            # No year to check: only alert when the title is unambiguous on the watchlist.
-            if len(candidates) == 1:
+        for title, year in title_parts(s):
+            candidates = by_title.get(normalize(title), [])
+            if year is not None:
+                # Venues are sometimes a year off from Letterboxd (festival vs release year).
+                hits = [f for f in candidates if f.year is None or abs(f.year - year) <= 1]
+                matches += [Match(f, s, year_confirmed=f.year is not None) for f in hits]
+            elif len(candidates) == 1:
+                # No year to check: only alert when the title is unambiguous on the watchlist.
                 matches.append(Match(candidates[0], s, year_confirmed=False))
     return matches

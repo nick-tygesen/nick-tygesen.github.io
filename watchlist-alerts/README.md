@@ -19,6 +19,28 @@ Matching rules:
 - A year difference of ±1 is allowed.
 - If the theater gives no year, the alert says "year not confirmed". If two watchlist films share that title, no alert is sent.
 
+## Theaters
+
+| Theater | Source | Year check | Look-ahead |
+| --- | --- | --- | --- |
+| Film Forum | `/now_playing` tabs + film page | yes | 7 days |
+| Metrograph | `/nyc/` calendar | yes | ~3 weeks |
+| IFC Center | homepage schedule + film page | yes | 7 days |
+| BAM | `/film` list + film page + BAM's performances JSON | yes | 14 days |
+| Quad Cinema | homepage day grids + film page | yes | 7 days |
+| Nitehawk (Williamsburg, Prospect Park) | schema.org data on homepage, coming-soon and film pages | yes | 14 days |
+| Paris Theater | film records embedded in the homepage | yes | run dates only, no showtimes |
+
+Detail pages are only fetched for films whose title might be on the watchlist.
+Requests are spaced 0.75s apart per site and identify themselves with a descriptive User-Agent.
+
+Not included, because they block automated requests or redirect off the allowed list:
+Film at Lincoln Center, MoMA, Museum of the Moving Image (Cloudflare bot checks), Screen Slate (same),
+Anthology Film Archives and Roxy Cinema (not yet tried at their new domains).
+
+To add a theater, write a module in `watchlist_alerts/venues/` with `NAME` and
+`fetch(days, want)`, then add it to `_load()` in `venues/__init__.py`.
+
 ## Setup (one time)
 
 1. Create a Gmail **app password**: Google Account → Security → 2-Step Verification → App passwords.

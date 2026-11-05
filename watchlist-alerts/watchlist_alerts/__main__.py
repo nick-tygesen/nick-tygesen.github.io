@@ -8,13 +8,13 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from pathlib import Path
 
 from . import letterboxd
-from .matching import find_matches
+from .matching import find_matches, make_prefilter
 from .notify import build_email, send_email
-from .venues import VENUES
+from .venues import NYC, VENUES
 
 STATE = Path(__file__).resolve().parent.parent / "state" / "seen.json"
 
@@ -47,16 +47,19 @@ def main() -> int:
         print("Watchlist came back empty (private account or page change?)", file=sys.stderr)
         return 1
 
+    want = make_prefilter(films)
     screenings, failures = [], []
     for venue in VENUES:
         try:
-            got = venue.fetch(args.days)
+            got = venue.fetch(args.days, want)
             print(f"{venue.NAME}: {len(got)} screenings")
             screenings += got
         except Exception as e:  # one broken site shouldn't stop the others
             failures.append(venue.NAME)
             print(f"{venue.NAME}: FAILED ({e!r})", file=sys.stderr)
 
+    now = datetime.now(NYC)
+    screenings = [s for s in screenings if s.start is None or s.start > now]
     seen = load_seen()
     new = [m for m in find_matches(films, screenings) if m.screening.key not in seen]
     print(f"New matches: {len(new)}")
