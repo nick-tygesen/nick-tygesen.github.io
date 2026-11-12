@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from datetime import date, datetime, timedelta
 from pathlib import Path
@@ -40,6 +41,12 @@ def main() -> int:
     ap.add_argument("--days", type=int, default=14, help="how far ahead to look")
     ap.add_argument("--dry-run", action="store_true", help="print instead of emailing; don't update state")
     args = ap.parse_args()
+
+    missing = [k for k in ("SMTP_USER", "SMTP_PASSWORD", "EMAIL_TO") if not os.environ.get(k)]
+    if missing and not args.dry_run:
+        print(f"::error::Missing email settings: {', '.join(missing)}. Add them as repository secrets "
+              "(Settings -> Secrets and variables -> Actions); see watchlist-alerts/README.md.", file=sys.stderr)
+        return 1
 
     films = letterboxd.fetch_watchlist(args.user)
     print(f"Watchlist: {len(films)} films")
